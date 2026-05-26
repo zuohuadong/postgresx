@@ -34,6 +34,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     name: Runtime backend comparison
@@ -143,12 +147,14 @@ jobs:
       - name: Commit benchmark results
         if: github.event_name == 'push' || inputs.commit_results == 'true'
         run: |
-          set -e
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git stash push --include-untracked -- benchmark.md README.md || true
+          tmpdir="$(mktemp -d)"
+          cp benchmark.md README.md "$tmpdir/"
           git pull --rebase origin main
-          git stash pop || true
+          cp "$tmpdir/benchmark.md" "$tmpdir/README.md" .
+          rm -rf "$tmpdir"
           git add benchmark.md README.md
           if git diff --cached --quiet; then
             echo "No benchmark changes"
