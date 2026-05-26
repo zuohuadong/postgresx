@@ -1,5 +1,5 @@
 /**
- * pgredis-bun-listen - zero-dependency PostgreSQL LISTEN/NOTIFY client.
+ * @postgresx/bun-listen - zero-dependency PostgreSQL LISTEN/NOTIFY client.
  *
  * Implements PostgreSQL Wire Protocol directly via Bun.connect() native TCP.
  * Supports TLS negotiation, MD5, Cleartext, and SCRAM-SHA-256 authentication.

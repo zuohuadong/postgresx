@@ -6,23 +6,23 @@ replacement, not Redis protocol or command compatibility.
 
 This repository publishes two packages:
 
-- `pgredis`: KV/TTL cache, collections, counters, advisory locks, rate limiting,
+- `@postgrex/noredis`: KV/TTL cache, collections, counters, advisory locks, rate limiting,
   PostgreSQL pub/sub helpers, and a thin `pg-boss` queue wrapper.
-- `pgredis-bun-listen`: a Bun-native PostgreSQL `LISTEN/NOTIFY` client using
+- `@postgresx/bun-listen`: a Bun-native PostgreSQL `LISTEN/NOTIFY` client using
   `Bun.connect()`. It is a subpackage and can be installed independently.
 
 Runtime adapters:
 
-- Bun: use `Bun.SQL` through `pgredis/adapters/bun`, and use
-  `pgredis-bun-listen` for low-level realtime notifications.
-- Node.js: use the `pg` package through `pgredis/adapters/node`.
+- Bun: use `Bun.SQL` through `@postgrex/noredis/adapters/bun`, and use
+  `@postgresx/bun-listen` for low-level realtime notifications.
+- Node.js: use the `pg` package through `@postgrex/noredis/adapters/node`.
 
-The published `pgredis` package does not install `pg`, `pg-boss`, Redis clients,
-or `pgredis-bun-listen` for you. Install those only for the features you use.
+The published `@postgrex/noredis` package does not install `pg`, `pg-boss`, Redis clients,
+or `@postgresx/bun-listen` for you. Install those only for the features you use.
 
 ## Installation
 
-`pgredis` has no required runtime dependencies. Install the database driver or
+`@postgrex/noredis` has no required runtime dependencies. Install the database driver or
 realtime package only for the runtime features you use.
 
 ### Bun.js
@@ -30,13 +30,13 @@ realtime package only for the runtime features you use.
 Base toolkit with `Bun.SQL`:
 
 ```bash
-bun add pgredis
+bun add @postgrex/noredis
 ```
 
 ```ts
 import { SQL } from "bun";
-import { createPgredis } from "pgredis";
-import { createBunSqlAdapter } from "pgredis/adapters/bun";
+import { createPgredis } from "@postgrex/noredis";
+import { createBunSqlAdapter } from "@postgrex/noredis/adapters/bun";
 
 const sql = createBunSqlAdapter(new SQL(process.env.DATABASE_URL!));
 const redis = createPgredis({ sql, namespace: "app" });
@@ -49,11 +49,11 @@ const session = await redis.cache.get<{ userId: number }>("session:abc");
 Bun realtime `LISTEN/NOTIFY`:
 
 ```bash
-bun add pgredis pgredis-bun-listen
+bun add @postgrex/noredis @postgresx/bun-listen
 ```
 
 ```ts
-import { createBunPgListener, publishPgNotify } from "pgredis";
+import { createBunPgListener, publishPgNotify } from "@postgrex/noredis";
 
 const listener = createBunPgListener(process.env.DATABASE_URL!, {
   channels: ["cache_invalidate"],
@@ -69,11 +69,11 @@ listener.close();
 Use only the Bun realtime subpackage:
 
 ```bash
-bun add pgredis-bun-listen
+bun add @postgresx/bun-listen
 ```
 
 ```ts
-import { createPgListener } from "pgredis-bun-listen";
+import { createPgListener } from "@postgresx/bun-listen";
 
 const listener = createPgListener(process.env.DATABASE_URL!, ["events"], (_channel, payload) => {
   console.log(payload);
@@ -85,12 +85,12 @@ const listener = createPgListener(process.env.DATABASE_URL!, ["events"], (_chann
 Base toolkit with `pg`:
 
 ```bash
-npm install pgredis pg
+npm install @postgrex/noredis pg
 ```
 
 ```ts
-import { createPgredis } from "pgredis";
-import { createPgAdapter } from "pgredis/adapters/node";
+import { createPgredis } from "@postgrex/noredis";
+import { createPgAdapter } from "@postgrex/noredis/adapters/node";
 
 const sql = createPgAdapter(process.env.DATABASE_URL!);
 const redis = createPgredis({ sql, namespace: "app" });
@@ -103,7 +103,7 @@ await sql.close();
 Node.js `LISTEN/NOTIFY`:
 
 ```ts
-import { createPgNodeListener } from "pgredis/adapters/node";
+import { createPgNodeListener } from "@postgrex/noredis/adapters/node";
 
 const listener = createPgNodeListener(process.env.DATABASE_URL!, {
   channels: ["events"],
@@ -116,11 +116,11 @@ const listener = createPgNodeListener(process.env.DATABASE_URL!, {
 Queues with `pg-boss`:
 
 ```bash
-npm install pgredis pg pg-boss
+npm install @postgrex/noredis pg pg-boss
 ```
 
 ```ts
-import { createPgBossJobQueue } from "pgredis";
+import { createPgBossJobQueue } from "@postgrex/noredis";
 
 const queue = createPgBossJobQueue({
   connectionString: process.env.DATABASE_URL,
@@ -157,13 +157,13 @@ bun run benchmark
 The benchmark writes results to `benchmark.md`. The GitHub Actions benchmark
 workflow is manual and also uploads the generated document as an artifact.
 `ioredis` is installed only in this repository as a benchmark/dev dependency;
-it is not a runtime dependency of the published `pgredis` package.
+it is not a runtime dependency of the published `@postgrex/noredis` package.
 
 ## Launch readiness
 
 Current local verification:
 
-- `bun run build` passes for `pgredis-bun-listen` and `pgredis`.
+- `bun run build` passes for `@postgresx/bun-listen` and `@postgrex/noredis`.
 - `bun test packages/` passes the package test suite.
 - `bun run check` passes TypeScript checks.
 
@@ -191,7 +191,7 @@ Redis protocol or supporting every Redis command.
 | Capability | ioredis | pgredis | Launch implication |
 | --- | --- | --- | --- |
 | Protocol and command surface | Sends Redis commands and supports arbitrary Redis command methods. | Exposes typed PostgreSQL-backed primitives only. | Migration requires code changes. Redis command compatibility is intentionally out of scope. |
-| Runtime dependency | Requires Redis, Redis-compatible service, or Redis Cluster/Sentinel. | Requires PostgreSQL; optional `pg`, `pg-boss`, or `pgredis-bun-listen` only for selected features. | Good fit for teams removing a separate Redis tier. |
+| Runtime dependency | Requires Redis, Redis-compatible service, or Redis Cluster/Sentinel. | Requires PostgreSQL; optional `pg`, `pg-boss`, or `@postgresx/bun-listen` only for selected features. | Good fit for teams removing a separate Redis tier. |
 | Strings / KV / TTL | Full Redis string command surface. | JSONB KV cache with TTL, batch get/set, prefix clear, optional local L1 cache, and notification invalidation. | Covers cache/session-style values, but not byte-string commands such as `APPEND`, `GETRANGE`, or `SETRANGE`. |
 | Hashes, lists, sets, sorted sets | Native Redis data structures and command coverage. | PostgreSQL table-backed helpers for common hash/list/set/zset operations. | Covers common app usage; advanced/blocking/list mutation and full command parity are not complete. |
 | Pub/Sub | Redis Pub/Sub, pattern subscriptions, binary messages, cluster behavior. | PostgreSQL `LISTEN/NOTIFY` publisher and Node/Bun listeners. | Good for lightweight invalidation/events; not durable and limited by PostgreSQL NOTIFY payload size. |

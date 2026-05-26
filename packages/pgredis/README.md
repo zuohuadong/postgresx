@@ -21,7 +21,7 @@ It provides:
 
 ## Installation
 
-`pgredis` itself has no required runtime dependencies. Install runtime-specific
+`@postgrex/noredis` itself has no required runtime dependencies. Install runtime-specific
 packages only for the adapters or features you use.
 
 ### Bun.js
@@ -29,13 +29,13 @@ packages only for the adapters or features you use.
 Base toolkit with `Bun.SQL`:
 
 ```bash
-bun add pgredis
+bun add @postgrex/noredis
 ```
 
 ```ts
 import { SQL } from "bun";
-import { createPgredis } from "pgredis";
-import { createBunSqlAdapter } from "pgredis/adapters/bun";
+import { createPgredis } from "@postgrex/noredis";
+import { createBunSqlAdapter } from "@postgrex/noredis/adapters/bun";
 
 const sql = createBunSqlAdapter(new SQL(process.env.DATABASE_URL!));
 const pg = createPgredis({ sql, namespace: "app" });
@@ -44,11 +44,11 @@ const pg = createPgredis({ sql, namespace: "app" });
 Bun realtime `LISTEN/NOTIFY`:
 
 ```bash
-bun add pgredis pgredis-bun-listen
+bun add @postgrex/noredis @postgresx/bun-listen
 ```
 
 ```ts
-import { createBunPgListener, publishPgNotify } from "pgredis";
+import { createBunPgListener, publishPgNotify } from "@postgrex/noredis";
 
 const listener = createBunPgListener(process.env.DATABASE_URL!, {
   channels: ["cache_invalidate"],
@@ -65,11 +65,11 @@ Install only the Bun-native listener when you do not need the rest of the
 toolkit:
 
 ```bash
-bun add pgredis-bun-listen
+bun add @postgresx/bun-listen
 ```
 
 ```ts
-import { createPgListener } from "pgredis-bun-listen";
+import { createPgListener } from "@postgresx/bun-listen";
 
 const listener = createPgListener(process.env.DATABASE_URL!, ["events"], (_channel, payload) => {
   console.log(payload);
@@ -81,12 +81,12 @@ const listener = createPgListener(process.env.DATABASE_URL!, ["events"], (_chann
 Base toolkit with `pg`:
 
 ```bash
-npm install pgredis pg
+npm install @postgrex/noredis pg
 ```
 
 ```ts
-import { createPgredis } from "pgredis";
-import { createPgAdapter } from "pgredis/adapters/node";
+import { createPgredis } from "@postgrex/noredis";
+import { createPgAdapter } from "@postgrex/noredis/adapters/node";
 
 const sql = createPgAdapter(process.env.DATABASE_URL!);
 const pg = createPgredis({ sql, namespace: "app" });
@@ -95,7 +95,7 @@ const pg = createPgredis({ sql, namespace: "app" });
 Node.js `LISTEN/NOTIFY`:
 
 ```ts
-import { createPgNodeListener } from "pgredis/adapters/node";
+import { createPgNodeListener } from "@postgrex/noredis/adapters/node";
 
 const listener = createPgNodeListener(process.env.DATABASE_URL!, {
   channels: ["cache_invalidate"],
@@ -108,13 +108,13 @@ const listener = createPgNodeListener(process.env.DATABASE_URL!, {
 Queues with `pg-boss`:
 
 ```bash
-npm install pgredis pg pg-boss
+npm install @postgrex/noredis pg pg-boss
 ```
 
 ## KV/TTL Cache
 
 ```ts
-import { createPgKvCache } from "pgredis";
+import { createPgKvCache } from "@postgrex/noredis";
 
 const cache = createPgKvCache({
   sql,
@@ -130,7 +130,7 @@ const value = await cache.get<{ userId: number }>("token:abc");
 ## Unified client
 
 ```ts
-import { createPgredis } from "pgredis";
+import { createPgredis } from "@postgrex/noredis";
 
 const pg = createPgredis({
   sql,
@@ -160,14 +160,14 @@ const stopCleanup = pg.startCleanupWorker({ intervalMs: 60_000 });
 ## Pub/Sub
 
 Publishing uses only the configured SQL adapter. Bun LISTEN/NOTIFY consumption
-uses the separate `pgredis-bun-listen` package and loads it dynamically.
+uses the separate `@postgresx/bun-listen` package and loads it dynamically.
 
 ```bash
-bun add pgredis-bun-listen
+bun add @postgresx/bun-listen
 ```
 
 ```ts
-import { createBunPgListener, publishPgNotify } from "pgredis";
+import { createBunPgListener, publishPgNotify } from "@postgrex/noredis";
 
 createBunPgListener(databaseUrl, ["cache_invalidate"], (_channel, payload) => {
   console.log(payload);
@@ -179,7 +179,7 @@ await publishPgNotify(sql, "cache_invalidate", { key: "token:abc" });
 Node.js can use the `pg`-based listener from the adapter subpath:
 
 ```ts
-import { createPgNodeListener } from "pgredis/adapters/node";
+import { createPgNodeListener } from "@postgrex/noredis/adapters/node";
 
 createPgNodeListener(process.env.DATABASE_URL!, {
   channels: ["cache_invalidate"],
@@ -195,7 +195,7 @@ createPgNodeListener(process.env.DATABASE_URL!, {
 PostgreSQL when the transaction ends.
 
 ```ts
-import { withPgAdvisoryLock } from "pgredis";
+import { withPgAdvisoryLock } from "@postgrex/noredis";
 
 await withPgAdvisoryLock(sql, "billing:flush", async (tx) => {
   await tx.unsafe("SELECT 1");
@@ -205,7 +205,7 @@ await withPgAdvisoryLock(sql, "billing:flush", async (tx) => {
 ## Rate limit
 
 ```ts
-import { createPgFixedWindowRateLimiter } from "pgredis";
+import { createPgFixedWindowRateLimiter } from "@postgrex/noredis";
 
 const limiter = createPgFixedWindowRateLimiter({
   sql,
@@ -221,7 +221,7 @@ const result = await limiter.hit("user:1");
 ## Queue
 
 ```ts
-import { createPgBossJobQueue } from "pgredis";
+import { createPgBossJobQueue } from "@postgrex/noredis";
 
 const queue = createPgBossJobQueue({
   connectionString: process.env.DATABASE_URL,
@@ -238,14 +238,14 @@ await queue.work("webhook.deliver", { batchSize: 1 }, async (jobs) => {
 });
 ```
 
-`pg-boss` is loaded dynamically and is not a runtime dependency of `pgredis`.
+`pg-boss` is loaded dynamically and is not a runtime dependency of `@postgrex/noredis`.
 Install it only when queue features are used:
 
 ```bash
-npm install pgredis pg-boss
+npm install @postgrex/noredis pg-boss
 ```
 
-`pgredis` intentionally keeps the queue API close to `pg-boss`:
+`@postgrex/noredis` intentionally keeps the queue API close to `pg-boss`:
 
 - `start()` starts `pg-boss` and creates configured queues.
 - `ensureQueue()` creates or updates queue metadata.
@@ -261,7 +261,7 @@ Streams commands.
 
 Current local verification:
 
-- `bun run build` passes for `pgredis-bun-listen` and `pgredis`.
+- `bun run build` passes for `@postgresx/bun-listen` and `@postgrex/noredis`.
 - `bun test packages/` passes the package test suite.
 - `bun run check` passes TypeScript checks.
 
@@ -288,7 +288,7 @@ Redis protocol or supporting every Redis command.
 | Capability | ioredis | pgredis | Launch implication |
 | --- | --- | --- | --- |
 | Protocol and command surface | Sends Redis commands and supports arbitrary Redis command methods. | Exposes typed PostgreSQL-backed primitives only. | Migration requires code changes. Redis command compatibility is intentionally out of scope. |
-| Runtime dependency | Requires Redis, Redis-compatible service, or Redis Cluster/Sentinel. | Requires PostgreSQL; optional `pg`, `pg-boss`, or `pgredis-bun-listen` only for selected features. | Good fit for teams removing a separate Redis tier. |
+| Runtime dependency | Requires Redis, Redis-compatible service, or Redis Cluster/Sentinel. | Requires PostgreSQL; optional `pg`, `pg-boss`, or `@postgresx/bun-listen` only for selected features. | Good fit for teams removing a separate Redis tier. |
 | Strings / KV / TTL | Full Redis string command surface. | JSONB KV cache with TTL, batch get/set, prefix clear, optional local L1 cache, and notification invalidation. | Covers cache/session-style values, but not byte-string commands such as `APPEND`, `GETRANGE`, or `SETRANGE`. |
 | Hashes, lists, sets, sorted sets | Native Redis data structures and command coverage. | PostgreSQL table-backed helpers for common hash/list/set/zset operations. | Covers common app usage; advanced/blocking/list mutation and full command parity are not complete. |
 | Pub/Sub | Redis Pub/Sub, pattern subscriptions, binary messages, cluster behavior. | PostgreSQL `LISTEN/NOTIFY` publisher and Node/Bun listeners. | Good for lightweight invalidation/events; not durable and limited by PostgreSQL NOTIFY payload size. |

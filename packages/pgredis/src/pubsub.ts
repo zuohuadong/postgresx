@@ -77,15 +77,16 @@ export function createBunPgListener(
     reject(error: Error): void;
   }> = [];
 
-  void import("pgredis-bun-listen")
+  void import("@postgresx/bun-listen")
     .then((mod) => {
       if (closed) return;
       handle = Array.isArray(channelsOrOptions)
         ? mod.createPgListener(databaseUrl, channelsOrOptions, onNotify!, maybeOptions)
         : mod.createPgListener(databaseUrl, channelsOrOptions);
+      const activeHandle = handle;
       for (const item of queue.splice(0)) {
         try {
-          item.resolve(item.action(handle));
+          item.resolve(item.action(activeHandle));
         } catch (error) {
           item.reject(error instanceof Error ? error : new Error(String(error)));
         }
@@ -93,7 +94,7 @@ export function createBunPgListener(
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
-      loadError = new Error(`pgredis-bun-listen is required for Bun LISTEN/NOTIFY. Install it with \`bun add pgredis-bun-listen\`. ${message}`);
+      loadError = new Error(`@postgresx/bun-listen is required for Bun LISTEN/NOTIFY. Install it with \`bun add @postgresx/bun-listen\`. ${message}`);
       for (const item of queue.splice(0)) item.reject(loadError);
     });
 
