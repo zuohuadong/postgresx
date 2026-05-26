@@ -76,12 +76,14 @@ async function publishPreparedPackage(dir, options) {
   const args = ["publish", dir, "--access", "public"];
   if (options.provenance) args.push("--provenance");
   if (options.authType) args.push("--auth-type", options.authType);
+  if (options.otp) args.push(`--otp=${options.otp}`);
   await run("npm", args);
 }
 
 const options = {
   provenance: process.argv.includes("--provenance"),
-  authType: process.argv.includes("--legacy-auth") ? "legacy" : null
+  authType: process.argv.includes("--legacy-auth") ? "legacy" : null,
+  otp: process.argv.find((arg) => arg.startsWith("--otp="))?.slice("--otp=".length) ?? null
 };
 
 const temp = await mkdtemp(join(tmpdir(), "pgredis-monorepo-publish-"));
