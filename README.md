@@ -250,16 +250,18 @@ Redis protocol or supporting every Redis command.
 
 ## Migration feature status
 
-The highest-value Redis migration features now have first-pass APIs and tests:
+All originally planned high-value Redis migration features have first-pass APIs and tests:
 
-1. PostgreSQL integration tests and tarball install smoke tests.
-2. `batch()` and `pipeline()` grouping facade.
-3. Durable outbox/stream API for Redis Streams-style event-log migrations.
-4. Polling `blpop()` / `brpop()` list helpers plus queue-first migration guidance.
-5. Production metrics for table sizes, cleanup counts, TTL backlog, listener health, and queue state.
-6. Redis-style aliases for common commands, without claiming protocol compatibility.
-7. Framework-neutral session stores and cache helpers under `@postgresx/noredis/adapters/web`.
-8. KV `NX`/`XX`, compare-and-swap, `touch`, `expire`, `persist`, and configurable serialization.
+1. ~~PostgreSQL integration tests and tarball install smoke tests~~ — CI runs `test:integration` and `smoke:pack`.
+2. ~~`batch()` and `pipeline()` grouping facade~~ — `batch()` uses SQL transactions; `pipeline()` executes ordered operations; `multi()` alias included.
+3. ~~Durable outbox/stream API~~ — `PgOutboxStream` with `append`, `claim`, `ack` for event-log migrations.
+4. ~~Polling `blpop()` / `brpop()` list helpers~~ — Plus `pg-boss` queue adapter for real job queues.
+5. ~~Production metrics~~ — `health()`, `stats()`, `metrics()` expose table sizes, cleanup counts, TTL backlog, listener and queue state.
+6. ~~Redis-style aliases~~ — `pg.redis.*` covers KV, hash, list, set, sorted set, pub/sub, counters, scan, TTL, and connection lifecycle.
+7. ~~Framework-neutral web adapters~~ — Session stores and cache helpers under `@postgresx/noredis/adapters/web`.
+8. ~~KV conditional writes~~ — `NX`/`XX`, compare-and-swap, `touch`, `expire`, `persist`, pluggable serialization, and optional L1 cache.
+9. ~~ioredis and node-redis facades~~ — `@postgresx/noredis/adapters/ioredis` and `@postgresx/noredis/adapters/redis` with whitelisted method surfaces.
+10. ~~Sub-module entry points~~ — `kv`, `hash`, `set`, `sorted-set`, `list`, `pubsub` subpath exports for typed primitives.
 
 ---
 
@@ -462,23 +464,25 @@ GitHub Actions 基准测试工作流会在 benchmark 相关文件变化时运行
 | 字符串 / KV / TTL | 完整的 Redis 字符串命令表面。 | JSONB KV 缓存，支持 TTL、批量 get/set、前缀清除、可选本地 L1 缓存和通知失效。 | 覆盖缓存/会话样式的值，但不支持字节字符串命令如 `APPEND`、`GETRANGE` 或 `SETRANGE`。 |
 | 哈希、列表、集合、有序集合 | 原生 Redis 数据结构和命令覆盖。 | PostgreSQL 表支持的常见 hash/list/set/zset 操作辅助函数。 | 覆盖常见应用用法；高级/阻塞/列表突变和完整命令对等性不完整。 |
 | Pub/Sub | Redis Pub/Sub、模式订阅、二进制消息、集群行为。 | PostgreSQL `LISTEN/NOTIFY` 发布者和 Node/Bun 监听器。 | 适用于轻量级失效/事件；不持久且受 PostgreSQL NOTIFY 有效负载大小限制。 |
-| 流 / 消费者组 | Redis Streams 命令如 `XADD` 和消费者组。 | 无 Redis Streams API；队列委托给 `pg-boss`。 | 如果需要事件日志语义，请添加持久化 outbox/stream API。 |
-| 管道 / 事务 | `pipeline`、`multi`、`exec` 和集群感知行为。 | 某些原语存在批量辅助函数；无通用管道或 Redis 风格事务外观。 | 添加 pgredis 批量/管道外观以提高迁移人体工程学。 |
+| 流 / 消费者组 | Redis Streams 命令如 `XADD` 和消费者组。 | 持久化 outbox/stream 辅助函数加 `pg-boss` 队列适配器。 | 无 Redis consumer-group 协议或 pending-entry-list 兼容。 |
+| 管道 / 事务 | `pipeline`、`multi`、`exec` 和集群感知行为。 | `batch()` 使用 SQL 适配器事务；`pipeline()` 执行有序 pgredis 操作。 | 无 Redis wire-level 管道或 `WATCH` 语义。 |
 | Lua 脚本 / Redis Functions | 支持脚本命令和自定义命令定义。 | 不在范围内；使用 SQL、存储过程或应用代码。 | 不要直接移植 Lua；重写为 SQL/应用逻辑。 |
 | 集群 / Sentinel / NAT 映射 | 内置在 ioredis 中。 | 继承自 PostgreSQL HA、池化和网络。 | 记录 PostgreSQL 部署假设而非 Redis HA 选项。 |
 | TLS / ACL / 认证 | Redis 连接、TLS 和 ACL 选项。 | 委托给 PostgreSQL 驱动、DSN 和数据库角色。 | 使用 PostgreSQL 凭据和传输设置。 |
 | Redis Stack 模块 | 可以发送模块命令，取决于 Redis 服务器支持。 | 无 RedisJSON、RediSearch、RedisTimeSeries、RedisBloom 外观。 | 首选 PostgreSQL JSONB、全文搜索、pgvector、PostGIS 或扩展。 |
 | 离线队列 / 重连策略 | 客户端级离线队列、重试、就绪检查、自动重新订阅。 | Node/Bun 监听器包括重连和健康状态；SQL 操作取决于数据库适配器/池行为。 | 添加操作级重试指南和适配器冒烟测试。 |
 
-## 功能待办
+## 已完成的迁移功能
 
-下一步要添加的最高价值功能：
+所有最初规划的高价值 Redis 迁移功能已有第一版 API 和测试：
 
-1. PostgreSQL 集成测试套件和 tarball 安装冒烟测试。
-2. 通用 `batch()` 或 `pipeline()` 外观，用于分组 pgredis 操作。
-3. 持久化 outbox/stream API，用于当前使用 Redis Streams 的应用。
-4. 阻塞列表弹出或显式队列优先迁移指南，用于工作者拉取。
-5. 生产指标，用于表大小、清理计数、TTL 积压、监听器重连和队列延迟。
-6. Redis 风格的迁移别名，用于最常见的命令，不声称协议兼容性。
-7. 框架适配器，如 Express/Fastify/Elysia 的会话存储和常见 Web 栈的缓存辅助函数。
-8. 更多 KV 选项：`set` NX/XX 语义、比较并交换、touch/expire 辅助函数和可配置序列化。
+1. ~~PostgreSQL 集成测试和 tarball 安装冒烟测试~~ — CI 运行 `test:integration` 和 `smoke:pack`。
+2. ~~`batch()` 和 `pipeline()` 分组外观~~ — `batch()` 使用 SQL 事务；`pipeline()` 执行有序操作；包含 `multi()` 别名。
+3. ~~持久化 outbox/stream API~~ — `PgOutboxStream` 提供 `append`、`claim`、`ack`，用于事件日志迁移。
+4. ~~轮询式 `blpop()` / `brpop()` 列表辅助函数~~ — 加上 `pg-boss` 队列适配器用于真实作业队列。
+5. ~~生产指标~~ — `health()`、`stats()`、`metrics()` 暴露表大小、清理计数、TTL 积压、监听器和队列状态。
+6. ~~Redis 风格别名~~ — `pg.redis.*` 覆盖 KV、哈希、列表、集合、有序集合、pub/sub、计数器、扫描、TTL 和连接生命周期。
+7. ~~框架中立 Web 适配器~~ — `@postgresx/noredis/adapters/web` 下的会话存储和缓存辅助函数。
+8. ~~KV 条件写入~~ — `NX`/`XX`、比较并交换、`touch`、`expire`、`persist`、可插拔序列化和可选 L1 缓存。
+9. ~~ioredis 和 node-redis 外观~~ — `@postgresx/noredis/adapters/ioredis` 和 `@postgresx/noredis/adapters/redis`，带白名单方法表面。
+10. ~~子模块入口~~ — `kv`、`hash`、`set`、`sorted-set`、`list`、`pubsub` 子路径导出类型化原语。
