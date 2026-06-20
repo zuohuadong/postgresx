@@ -137,17 +137,5 @@ jobs:
       - name: Build packages
         run: bun run build
 
-      - name: Validate publish configuration
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -e
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN is required for workflow_dispatch publish"
-            exit 1
-          fi
-
       - name: Publish changed packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: bun run publish:packages -- --provenance
