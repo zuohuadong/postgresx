@@ -167,6 +167,12 @@ bun test packages/
 bun run check
 ```
 
+## Recipes
+
+- [Telemetry collector recipe](./docs/telemetry-collector-recipe.md) — use
+  pgredis server-side for rate limiting, short-lived cache, and post-ingest
+  workers while keeping telemetry clients dependency-free.
+
 ## Benchmark
 
 Benchmarks compare the same operation groups across Node.js + Redis,
