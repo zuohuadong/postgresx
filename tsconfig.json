@@ -6,6 +6,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
+      "@postgresx/bun-listen": [
+        "packages/bun-listen/src/index.ts"
+      ],
       "@postgresx/noredis/adapters/ioredis": [
         "packages/pgredis/src/adapters/ioredis.ts"
       ],

@@ -80,10 +80,10 @@ export function createBunPgListener(
   void import("@postgresx/bun-listen")
     .then((mod) => {
       if (closed) return;
-      handle = Array.isArray(channelsOrOptions)
+      const activeHandle: PgListenerHandle = Array.isArray(channelsOrOptions)
         ? mod.createPgListener(databaseUrl, channelsOrOptions, onNotify!, maybeOptions)
         : mod.createPgListener(databaseUrl, channelsOrOptions);
-      const activeHandle = handle;
+      handle = activeHandle;
       for (const item of queue.splice(0)) {
         try {
           item.resolve(item.action(activeHandle));

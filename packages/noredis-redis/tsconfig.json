@@ -4,6 +4,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
+      "@postgresx/bun-listen": [
+        "../bun-listen/src/index.ts"
+      ],
       "@postgresx/noredis/adapters/redis": [
         "../pgredis/src/adapters/redis.ts"
       ]

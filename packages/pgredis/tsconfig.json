@@ -3,6 +3,11 @@
   "compilerOptions": {
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
+    "paths": {
+      "@postgresx/bun-listen": [
+        "../bun-listen/src/index.ts"
+      ]
+    },
     "types": [
       "bun",
       "node"
