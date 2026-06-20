@@ -4,6 +4,11 @@
   "description": "Thin node-redis-shaped facade package for @postgresx/noredis migrations",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zuohuadong/postgresx",
+    "directory": "packages/noredis-redis"
+  },
   "sideEffects": false,
   "files": [
     "dist/**/*",

@@ -4,6 +4,11 @@
   "description": "PostgreSQL-backed Redis feature replacement toolkit: KV/TTL cache, pub/sub, advisory locks, rate limiting, and pg-boss queues",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zuohuadong/postgresx",
+    "directory": "packages/pgredis"
+  },
   "sideEffects": false,
   "files": [
     "dist/**/*",
