@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.2](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-redis-v0.2.1...@postgresx/noredis-redis-v0.2.2) (2026-06-20)
+
+
+### Documentation
+
+* add telemetry collector recipe ([8fa43bf](https://github.com/zuohuadong/postgresx/commit/8fa43bf4212fed0dd0e3c08e277f75428547cc12))
+* add telemetry collector recipe ([50b72c7](https://github.com/zuohuadong/postgresx/commit/50b72c7ffbd06a99a779c7bc2a91269defd13e7b))
+
 ## [0.2.1](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-redis-v0.2.0...@postgresx/noredis-redis-v0.2.1) (2026-06-18)
 
 
