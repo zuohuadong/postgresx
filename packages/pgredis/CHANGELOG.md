@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-v0.5.2...@postgresx/noredis-v0.6.0) (2026-06-27)
+
+
+### Features
+
+* **pgredis:** add fixed-window rate limit controls ([#12](https://github.com/zuohuadong/postgresx/issues/12)) ([84549f0](https://github.com/zuohuadong/postgresx/commit/84549f0ab0cf30e62eb955177e29c1d7c5302b9b))
+
+
+### Bug Fixes
+
+* add npm provenance repository metadata ([8a6ab7d](https://github.com/zuohuadong/postgresx/commit/8a6ab7df05b80e606d4d16a733181f214884c270))
+* add npm provenance repository metadata ([80e7839](https://github.com/zuohuadong/postgresx/commit/80e78397a631b5f77d636a43fa573d3ac1e1107a))
+
 ## [0.5.2](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-v0.5.1...@postgresx/noredis-v0.5.2) (2026-06-20)
 
 
