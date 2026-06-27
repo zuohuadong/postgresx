@@ -4,6 +4,7 @@ import type { PgSqlLike } from "./sql";
 
 class MockSql implements PgSqlLike {
   readonly counts = new Map<string, number>();
+  readonly expiresAt = new Map<string, Date>();
   readonly queries: Array<{ query: string; params: readonly unknown[] }> = [];
 
   async unsafe<T = Record<string, unknown>>(query: string, params: readonly unknown[] = []): Promise<T[]> {
@@ -12,11 +13,41 @@ class MockSql implements PgSqlLike {
     if (normalized.startsWith("CREATE")) return [] as T[];
     if (normalized.startsWith("INSERT INTO")) {
       const compoundKey = `${String(params[0])}:${String(params[1])}:${String(params[2])}`;
-      const nextCount = (this.counts.get(compoundKey) || 0) + Number(params[3]);
+      const currentCount = this.counts.get(compoundKey) || 0;
+      const nextCount = normalized.includes("SET COUNT = GREATEST")
+        ? Math.max(currentCount, Number(params[3]))
+        : currentCount + Number(params[3]);
       this.counts.set(compoundKey, nextCount);
-      return [{ count: nextCount }] as T[];
+      const expiresAt = new Date(2000 + Number(params[4]));
+      this.expiresAt.set(compoundKey, expiresAt);
+      return [{ count: nextCount, expires_at: expiresAt }] as T[];
+    }
+    if (normalized.startsWith("SELECT COUNT")) {
+      const compoundKey = `${String(params[0])}:${String(params[1])}:${String(params[2])}`;
+      const count = this.counts.get(compoundKey);
+      if (count === undefined) return [] as T[];
+      return [{ count, expires_at: this.expiresAt.get(compoundKey) ?? new Date(3000) }] as T[];
+    }
+    if (normalized.startsWith("UPDATE")) {
+      const compoundKey = `${String(params[0])}:${String(params[1])}:${String(params[2])}`;
+      const count = this.counts.get(compoundKey);
+      if (count === undefined) return [] as T[];
+      const nextCount = Math.max(0, count - Number(params[3]));
+      this.counts.set(compoundKey, nextCount);
+      return [{ count: nextCount, expires_at: this.expiresAt.get(compoundKey) ?? new Date(3000) }] as T[];
     }
     if (normalized.startsWith("DELETE FROM")) {
+      if (params.length >= 2) {
+        let deleted = 0;
+        for (const key of this.counts.keys()) {
+          if (key.startsWith(`${String(params[0])}:${String(params[1])}:`)) {
+            this.counts.delete(key);
+            this.expiresAt.delete(key);
+            deleted += 1;
+          }
+        }
+        return Array.from({ length: deleted }, () => ({ key: String(params[1]) })) as T[];
+      }
       return [{ key: "old" }] as T[];
     }
     throw new Error(`Unhandled SQL: ${query}`);
@@ -108,6 +139,47 @@ describe("PgFixedWindowRateLimiter", () => {
       remaining: 0,
       retryAfterMs: 766
     });
+  });
+
+  test("reads, rewards, blocks and deletes active fixed-window state", async () => {
+    const sql = new MockSql();
+    const limiter = new PgFixedWindowRateLimiter({
+      sql,
+      namespace: "api",
+      limit: 2,
+      windowMs: 1000,
+      now: () => 1234
+    });
+
+    await expect(limiter.get("user:1")).resolves.toBeNull();
+
+    await limiter.hit("user:1", { cost: 2 });
+    await expect(limiter.get("user:1")).resolves.toMatchObject({
+      allowed: true,
+      count: 2,
+      remaining: 0
+    });
+
+    await expect(limiter.reward("user:1")).resolves.toMatchObject({
+      allowed: true,
+      count: 1,
+      remaining: 1
+    });
+
+    await expect(limiter.block("user:1", { blockMs: 5000 })).resolves.toMatchObject({
+      allowed: false,
+      count: 3,
+      remaining: 0
+    });
+
+    await expect(limiter.hit("user:1")).resolves.toMatchObject({
+      allowed: false,
+      count: 3,
+      remaining: 0
+    });
+
+    await expect(limiter.delete("user:1")).resolves.toBe(true);
+    await expect(limiter.get("user:1")).resolves.toBeNull();
   });
 
   test("cleans up expired rows", async () => {

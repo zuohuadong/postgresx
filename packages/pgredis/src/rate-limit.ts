@@ -15,6 +15,16 @@ export interface PgRateLimitHitOptions {
   cost?: number;
 }
 
+export interface PgRateLimitStateOptions {
+  limit?: number;
+  windowMs?: number;
+}
+
+export interface PgRateLimitBlockOptions extends PgRateLimitStateOptions {
+  blockMs: number;
+  count?: number;
+}
+
 export interface PgRateLimitSchemaOptions {
   unlogged?: boolean;
 }
@@ -58,12 +68,29 @@ export interface PgTokenBucketResult {
 
 interface CountRow {
   count: number | string;
+  expires_at?: Date | string | number;
 }
 
 const DEFAULT_TABLE_NAME = "pg_rate_limit";
 const DEFAULT_NAMESPACE = "default";
 const DEFAULT_SLIDING_TABLE_NAME = "pg_sliding_rate_limit";
 const DEFAULT_TOKEN_BUCKET_TABLE_NAME = "pg_token_bucket_rate_limit";
+const BLOCK_WINDOW_START = -1;
+
+function normalizeLimit(value: number, name: string): number {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`Invalid ${name}: ${value}`);
+  return Math.floor(value);
+}
+
+function dateMs(value: Date | string | number | undefined, fallback: number): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
+}
 
 export class PgFixedWindowRateLimiter {
   readonly namespace: string;
@@ -111,6 +138,8 @@ export class PgFixedWindowRateLimiter {
     const now = this.now();
     const windowStart = Math.floor(now / windowMs) * windowMs;
     const resetAtMs = windowStart + windowMs;
+    const blocked = await this.getActiveBlock(key, limit, now, resetAtMs);
+    if (blocked) return blocked;
 
     const rows = await this.sql.unsafe<CountRow>(
       `INSERT INTO ${this.quotedTableName} (namespace, key, window_start, count, expires_at, updated_at)
@@ -143,6 +172,101 @@ export class PgFixedWindowRateLimiter {
     };
   }
 
+  async get(key: string, options: PgRateLimitStateOptions = {}): Promise<PgRateLimitResult | null> {
+    const limit = normalizeLimit(options.limit ?? this.limit, "limit");
+    const windowMs = normalizePositiveInteger(options.windowMs ?? this.windowMs, "windowMs");
+    const now = this.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const resetAtMs = windowStart + windowMs;
+    const blocked = await this.getActiveBlock(key, limit, now, resetAtMs);
+    if (blocked) return blocked;
+
+    const rows = await this.sql.unsafe<CountRow>(
+      `SELECT count, expires_at
+       FROM ${this.quotedTableName}
+       WHERE namespace = $1
+         AND key = $2
+         AND window_start = $3
+         AND expires_at > NOW()
+       LIMIT 1`,
+      [this.namespace, key, windowStart]
+    );
+
+    const row = rows[0];
+    if (!row) return null;
+    return this.resultFromRow(row, limit, now, resetAtMs);
+  }
+
+  async reward(key: string, cost = 1, options: PgRateLimitStateOptions = {}): Promise<PgRateLimitResult | null> {
+    const limit = normalizeLimit(options.limit ?? this.limit, "limit");
+    const windowMs = normalizePositiveInteger(options.windowMs ?? this.windowMs, "windowMs");
+    const normalizedCost = normalizePositiveInteger(cost, "cost");
+    const now = this.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const resetAtMs = windowStart + windowMs;
+
+    const blockRows = await this.decrementWindow(key, BLOCK_WINDOW_START, normalizedCost);
+    const blockRow = blockRows[0];
+    if (blockRow) return this.resultFromRow(blockRow, limit, now, resetAtMs);
+
+    const rows = await this.decrementWindow(key, windowStart, normalizedCost);
+    const row = rows[0];
+    if (!row) return null;
+    return this.resultFromRow(row, limit, now, resetAtMs);
+  }
+
+  private async decrementWindow(key: string, windowStart: number, cost: number): Promise<CountRow[]> {
+    return await this.sql.unsafe<CountRow>(
+      `UPDATE ${this.quotedTableName}
+       SET count = GREATEST(count - $4, 0),
+           updated_at = NOW()
+       WHERE namespace = $1
+         AND key = $2
+         AND window_start = $3
+         AND expires_at > NOW()
+       RETURNING count, expires_at`,
+      [this.namespace, key, windowStart, cost]
+    );
+  }
+
+  async block(key: string, options: PgRateLimitBlockOptions): Promise<PgRateLimitResult> {
+    const limit = normalizeLimit(options.limit ?? this.limit, "limit");
+    const blockMs = normalizePositiveInteger(options.blockMs, "blockMs");
+    const count = normalizePositiveInteger(options.count ?? Math.max(limit + 1, 1), "count");
+    const now = this.now();
+    const resetAtMs = now + blockMs;
+
+    const rows = await this.sql.unsafe<CountRow>(
+      `INSERT INTO ${this.quotedTableName} (namespace, key, window_start, count, expires_at, updated_at)
+       VALUES (
+         $1,
+         $2,
+         $3,
+         $4,
+         NOW() + ($5::bigint * INTERVAL '1 millisecond'),
+         NOW()
+       )
+       ON CONFLICT (namespace, key, window_start) DO UPDATE
+       SET count = GREATEST(${this.quotedTableName}.count, EXCLUDED.count),
+           expires_at = GREATEST(${this.quotedTableName}.expires_at, EXCLUDED.expires_at),
+           updated_at = NOW()
+       RETURNING count, expires_at`,
+      [this.namespace, key, BLOCK_WINDOW_START, count, blockMs]
+    );
+
+    return this.resultFromRow(rows[0] ?? { count }, limit, now, resetAtMs);
+  }
+
+  async delete(key: string): Promise<boolean> {
+    const rows = await this.sql.unsafe<{ key: string }>(
+      `DELETE FROM ${this.quotedTableName}
+       WHERE namespace = $1 AND key = $2
+       RETURNING key`,
+      [this.namespace, key]
+    );
+    return rows.length > 0;
+  }
+
   async cleanupExpired(limit = 1000): Promise<number> {
     const rows = await this.sql.unsafe<{ key: string }>(
       `DELETE FROM ${this.quotedTableName}
@@ -156,6 +280,42 @@ export class PgFixedWindowRateLimiter {
       [Math.max(1, Math.floor(limit))]
     );
     return rows.length;
+  }
+
+  private resultFromRow(row: CountRow, limit: number, now: number, fallbackResetAtMs: number): PgRateLimitResult {
+    const count = Number(row.count);
+    const resetAtMs = dateMs(row.expires_at, fallbackResetAtMs);
+    const allowed = count <= limit;
+    return {
+      allowed,
+      limit,
+      count,
+      remaining: Math.max(0, limit - count),
+      resetAt: new Date(resetAtMs),
+      retryAfterMs: allowed ? 0 : Math.max(0, resetAtMs - now)
+    };
+  }
+
+  private async getActiveBlock(
+    key: string,
+    limit: number,
+    now: number,
+    fallbackResetAtMs: number
+  ): Promise<PgRateLimitResult | null> {
+    const rows = await this.sql.unsafe<CountRow>(
+      `SELECT count, expires_at
+       FROM ${this.quotedTableName}
+       WHERE namespace = $1
+         AND key = $2
+         AND window_start = $3
+         AND expires_at > NOW()
+       LIMIT 1`,
+      [this.namespace, key, BLOCK_WINDOW_START]
+    );
+
+    const row = rows[0];
+    if (!row || Number(row.count) <= limit) return null;
+    return this.resultFromRow(row, limit, now, fallbackResetAtMs);
   }
 }
 
