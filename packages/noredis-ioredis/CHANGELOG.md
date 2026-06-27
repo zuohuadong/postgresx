@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-ioredis-v0.2.2...@postgresx/noredis-ioredis-v0.2.3) (2026-06-27)
+
+
+### Bug Fixes
+
+* add npm provenance repository metadata ([8a6ab7d](https://github.com/zuohuadong/postgresx/commit/8a6ab7df05b80e606d4d16a733181f214884c270))
+* add npm provenance repository metadata ([80e7839](https://github.com/zuohuadong/postgresx/commit/80e78397a631b5f77d636a43fa573d3ac1e1107a))
+
 ## [0.2.2](https://github.com/zuohuadong/postgresx/compare/@postgresx/noredis-ioredis-v0.2.1...@postgresx/noredis-ioredis-v0.2.2) (2026-06-20)
 
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/zuohuadong/postgresx/compare/@postgresx/bun-listen-v0.3.0...@postgresx/bun-listen-v0.3.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* add npm provenance repository metadata ([8a6ab7d](https://github.com/zuohuadong/postgresx/commit/8a6ab7df05b80e606d4d16a733181f214884c270))
+* add npm provenance repository metadata ([80e7839](https://github.com/zuohuadong/postgresx/commit/80e78397a631b5f77d636a43fa573d3ac1e1107a))
+
 ## [0.3.0](https://github.com/zuohuadong/postgresx/compare/@postgresx/bun-listen-v0.2.0...@postgresx/bun-listen-v0.3.0) (2026-05-26)
 
 
